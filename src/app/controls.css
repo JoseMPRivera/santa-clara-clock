@@ -1,0 +1,122 @@
+/* Interactive controls: segmented toggles, the auto-refresh toggle and the hourly strip. */
+
+.clock__controls {
+  margin-top: 1rem;
+}
+
+.weather__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.segmented {
+  display: inline-flex;
+  padding: 0.2rem;
+  border: 1px solid var(--panel-line);
+  border-radius: 0.7rem;
+  background: var(--panel);
+}
+
+.segmented__option {
+  padding: 0.4rem 0.85rem;
+  border: 0;
+  border-radius: 0.5rem;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.segmented__option[aria-pressed="true"],
+.toggle[aria-pressed="true"],
+.hourly__item[aria-pressed="true"] {
+  color: var(--on-ink);
+  background: var(--ink);
+}
+
+.toggle {
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--panel-line);
+  border-radius: 0.7rem;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.segmented__option:focus-visible,
+.toggle:focus-visible,
+.hourly__item:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.weather__when {
+  margin: 0 0 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+.hourly {
+  display: flex;
+  gap: 0.5rem;
+  margin: 1.25rem 0 0;
+  padding: 0 0 0.5rem;
+  list-style: none;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+}
+
+.hourly li {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+}
+
+.hourly__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  min-width: 4.25rem;
+  padding: 0.6rem 0.5rem;
+  border: 1px solid var(--panel-line);
+  border-radius: 0.7rem;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.hourly__time,
+.hourly__rain {
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+
+.hourly__temp {
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .segmented__option,
+  .toggle,
+  .hourly__item {
+    transition:
+      background-color 150ms ease,
+      color 150ms ease;
+  }
+}

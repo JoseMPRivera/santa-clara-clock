@@ -12,12 +12,12 @@ const pointsBody = {
 };
 
 const basePeriod = {
+  startTime: "2026-10-22T13:00:00-07:00",
   temperature: 64,
   temperatureUnit: "F",
   shortForecast: "Mostly Sunny",
   windSpeed: "5 mph",
   windDirection: "NW",
-  isDaytime: true,
   probabilityOfPrecipitation: { value: 10 },
   relativeHumidity: { value: 55 },
 };
@@ -45,20 +45,39 @@ afterEach(() => {
 });
 
 describe("getWeather", () => {
-  it("maps the first hourly forecast period to a snapshot", async () => {
+  it("maps hourly forecast periods to a snapshot", async () => {
     mockFetchSequence(jsonResponse(pointsBody), jsonResponse(hourlyBody()));
 
     await expect(getWeather()).resolves.toEqual({
       location: "Santa Clara County",
-      temperatureF: 64,
-      shortForecast: "Mostly Sunny",
-      windSpeed: "5 mph",
-      windDirection: "NW",
-      precipitationChance: 10,
-      humidity: 55,
-      isDaytime: true,
       updatedAt: "2026-10-22T20:00:00+00:00",
+      hourly: [
+        {
+          startTime: "2026-10-22T13:00:00-07:00",
+          temperatureF: 64,
+          shortForecast: "Mostly Sunny",
+          windSpeed: "5 mph",
+          windDirection: "NW",
+          precipitationChance: 10,
+          humidity: 55,
+        },
+      ],
     });
+  });
+
+  it("returns at most 12 hours, soonest first", async () => {
+    const periods = Array.from({ length: 24 }, (_, hour) => ({
+      ...basePeriod,
+      startTime: `2026-10-22T${String(hour).padStart(2, "0")}:00:00-07:00`,
+      temperature: 50 + hour,
+    }));
+    mockFetchSequence(jsonResponse(pointsBody), jsonResponse(hourlyBody(periods)));
+
+    const weather = await getWeather();
+
+    expect(weather.hourly).toHaveLength(12);
+    expect(weather.hourly[0]?.startTime).toBe("2026-10-22T00:00:00-07:00");
+    expect(weather.hourly[11]?.temperatureF).toBe(61);
   });
 
   it("converts Celsius temperatures to Fahrenheit", async () => {
@@ -67,7 +86,7 @@ describe("getWeather", () => {
 
     const weather = await getWeather();
 
-    expect(weather.temperatureF).toBe(68);
+    expect(weather.hourly[0]?.temperatureF).toBe(68);
   });
 
   it("returns null for missing precipitation and humidity values", async () => {
@@ -80,8 +99,8 @@ describe("getWeather", () => {
 
     const weather = await getWeather();
 
-    expect(weather.precipitationChance).toBeNull();
-    expect(weather.humidity).toBeNull();
+    expect(weather.hourly[0]?.precipitationChance).toBeNull();
+    expect(weather.hourly[0]?.humidity).toBeNull();
   });
 
   it("retries once after a transient server error", async () => {
@@ -91,7 +110,7 @@ describe("getWeather", () => {
       jsonResponse(hourlyBody()),
     );
 
-    await expect(getWeather()).resolves.toMatchObject({ temperatureF: 64 });
+    await expect(getWeather()).resolves.toMatchObject({ hourly: [{ temperatureF: 64 }] });
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 

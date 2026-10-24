@@ -1,7 +1,10 @@
 import "server-only";
-import type { WeatherSnapshot } from "./types";
+import type { HourlyForecast, WeatherSnapshot } from "./types";
 
 const NWS_BASE = "https://api.weather.gov";
+
+// How many upcoming hours the API returns, starting with the current one.
+const HOURS_TO_SHOW = 12;
 
 // San Jose is the Santa Clara County seat; the NWS API looks up forecasts by point.
 const LOCATION = { label: "Santa Clara County", lat: 37.3382, lon: -121.8863 } as const;
@@ -14,12 +17,12 @@ interface PointsResponse {
 }
 
 interface HourlyPeriod {
+  startTime: string;
   temperature: number;
   temperatureUnit: "F" | "C";
   shortForecast: string;
   windSpeed: string;
   windDirection: string;
-  isDaytime: boolean;
   probabilityOfPrecipitation?: { value: number | null };
   relativeHumidity?: { value: number | null };
 }
@@ -48,6 +51,23 @@ async function nwsFetch<T>(url: string, revalidateSeconds: number): Promise<T> {
   throw lastError;
 }
 
+function toHourlyForecast(period: HourlyPeriod): HourlyForecast {
+  const temperatureF =
+    period.temperatureUnit === "C"
+      ? Math.round((period.temperature * 9) / 5 + 32)
+      : period.temperature;
+
+  return {
+    startTime: period.startTime,
+    temperatureF,
+    shortForecast: period.shortForecast,
+    windSpeed: period.windSpeed,
+    windDirection: period.windDirection,
+    precipitationChance: period.probabilityOfPrecipitation?.value ?? null,
+    humidity: period.relativeHumidity?.value ?? null,
+  };
+}
+
 export async function getWeather(): Promise<WeatherSnapshot> {
   // The grid point for a location almost never changes, so cache it for a day.
   const point = await nwsFetch<PointsResponse>(
@@ -62,23 +82,12 @@ export async function getWeather(): Promise<WeatherSnapshot> {
 
   // Forecasts refresh roughly hourly; cache for 10 minutes.
   const hourly = await nwsFetch<HourlyResponse>(hourlyUrl, 600);
-  const period = hourly.properties.periods[0];
-  if (!period) throw new Error("NWS returned no forecast periods");
-
-  const temperatureF =
-    period.temperatureUnit === "C"
-      ? Math.round((period.temperature * 9) / 5 + 32)
-      : period.temperature;
+  const periods = hourly.properties.periods.slice(0, HOURS_TO_SHOW);
+  if (periods.length === 0) throw new Error("NWS returned no forecast periods");
 
   return {
     location: LOCATION.label,
-    temperatureF,
-    shortForecast: period.shortForecast,
-    windSpeed: period.windSpeed,
-    windDirection: period.windDirection,
-    precipitationChance: period.probabilityOfPrecipitation?.value ?? null,
-    humidity: period.relativeHumidity?.value ?? null,
-    isDaytime: period.isDaytime,
     updatedAt: hourly.properties.generatedAt,
+    hourly: periods.map(toHourlyForecast),
   };
 }
